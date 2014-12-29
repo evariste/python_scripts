@@ -1,0 +1,11 @@
+
+*.pyc
+
+.svn
+
+IndexingNumpyArrays.pdf
+imagingLib
+pacsdbs
+pythonEnvs
+sk-image
+
