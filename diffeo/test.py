@@ -11,15 +11,10 @@ from deformationLinear import *
 x = DeformationLinear(2,3,4)
 print x.dx
 
+a,b = runCommand('ls *.vtk', shellVal=True)
 
-s = """
-a b
 
-c d
+print 'a ' + a
 
-1 2 3 
-
-"""
-
-print s
+print 'b ' + b
 
