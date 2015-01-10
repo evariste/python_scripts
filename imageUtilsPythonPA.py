@@ -8,10 +8,22 @@ def getBoxIntegral(integralImage, corner0, corner1):
   """
   Get the integral of values inside a cuboid in a 3D array for which the integral image is given
   defined by corner0 and corner1.
-  Sum is inclusive, i.e. includes both corner
-  """
+  
+  integralImage: Summed area (volume!) table for some 3D array (a.k.a. integral image)
+  
+  corner0, corner1 : length 3 array-like to define the corners of the cuboid in the array.
+                     Will not work if any of the indices are zero.
+  
+  Sum is inclusive, i.e. includes both array elements at corners. I.e. if M was the original
+  array for which the integralImage is given, we return the value of S in the following
+  
+  S = 0
+  for i in range(x1, x2+1):
+   for j in range(y1, y2+1):
+    for k in range(z1, z2+1):
+      S = S + M[i,j,k]
 
-  # TODO: check dimension of m, and corners.
+  """
 
   # Shorter name.
   m = integralImage
@@ -29,20 +41,21 @@ def getBoxIntegral(integralImage, corner0, corner1):
   if np.any(c1 >= m.shape):
     raise Exception('getBoxIntegral: indices exceed array size')
 
-  x1, y1, z1 = c0
-  x2, y2, z2 = c1
+  x0, y0, z0 = c0
+  x1, y1, z1 = c1
 
-  x1, y1, z1 = x1 - 1, y1 - 1, z1 - 1
+  x0, y0, z0 = x0 - 1, y0 - 1, z0 - 1
 
-  return (m[x2, y2, z2] -
-          m[x2, y2, z1] -
-          m[x2, y1, z2] -
-          m[x1, y2, z2] +
-          m[x1, y1, z2] +
-          m[x1, y2, z1] +
-          m[x2, y1, z1] -
-          m[x1, y1, z1])
+  S = (  m[x1, y1, z1]
+       - m[x1, y1, z0]
+       - m[x1, y0, z1]
+       - m[x0, y1, z1]
+       + m[x0, y0, z1]
+       + m[x0, y1, z0]
+       + m[x1, y0, z0]
+       - m[x0, y0, z0])
 
+  return S
 
 
 def getIntegralArray(m, pad=False):
