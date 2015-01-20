@@ -17,9 +17,12 @@ atlasDir = '/Users/paulaljabar/work/atlases/neo-nr-T1-T2-segs'
 # Which atlas labels to use?
 labelImgName = atlasDir + '/atlas-7/40.nii.gz'
 labelGM = 2
-labelOuterCSF = 1
-labelNonBrain = 4
+labelOuterCSF       = 1
+labelNonBrain       = 4
 labelStemCerebellum = 6
+labelDGM            = 7
+labelVentricle      = 5
+labelWM             = 3
 
 # The end result.
 outputMesh = atlasDir + '/atlas-7/cortex-mid-40-weeks.vtk'
@@ -27,10 +30,11 @@ outputMesh = atlasDir + '/atlas-7/cortex-mid-40-weeks.vtk'
 # TODO: On error remove temporary files.
 
 import nibabel as nib
-import SimpleITK as sitk
 import numpy as np
 import tempfile
 import os
+from scipy.ndimage import label as connComp
+from scipy.ndimage import convolve
 
 import sys
 sys.path.append('/Users/paulaljabar/work/scripts/python')
@@ -38,8 +42,8 @@ from generalUtilsPythonPA import runCommand
 
 
 # Atlas labels
-labelImg = sitk.ReadImage(labelImgName)
-labelArray = sitk.GetArrayFromImage(labelImg)
+labelImg = nib.load(labelImgName)
+labelArray = labelImg.get_data().squeeze()
 
 print 'Finding largest GM component'
 
@@ -48,13 +52,10 @@ allGM = np.copy(labelArray)
 allGM[allGM != labelGM] = 0
 allGM[allGM > 0] = 1
 
-# Find all components.
-ccFilt = sitk.ConnectedComponentImageFilter()
-img = sitk.GetImageFromArray(allGM)
-gmLC = sitk.GetArrayFromImage(ccFilt.Execute(img))
+gmLC = connComp(allGM)[0]
+# Retain largest component
+gmLC[gmLC > 1] = 0
 
-# Isolate largest connected component.
-gmLC[gmLC != 1] = 0
 
 #############################################
 print 'Getting two label map'
@@ -72,13 +73,8 @@ roiData[roiData > 0] = 1
 # interested in.
 roiData[gmLC > 0] = 2
 
-zDim, yDim, xDim = roiData.shape
+xDim, yDim, zDim = roiData.shape
 
-#img = sitk.GetImageFromArray(roiData)
-#img.CopyInformation(labelImg)
-# tempFile0 = os.path.join(tempDir , 'tmp0.nii.gz' )
-#sitk.WriteImage(img, tempFile0)
-#del img
 
 #############################################
 print 'Estimating mid-line'
@@ -104,35 +100,25 @@ print ' Splitting label data into left and right hemispheres'
 
 hemiL = roiData.copy()
 xRange = np.array(range(xMid))
-hemiL[:,:,xRange] = 0
-
-#imgHemiL = sitk.GetImageFromArray(hemiL)
-#imgHemiL.CopyInformation(labelImg)
-# tempFile1 = os.path.join(tempDir , 'tmp1.nii.gz' )
-# sitk.WriteImage(imgHemiL, tempFile1)
+hemiL[xRange,:,:] = 0
 
 hemiR = roiData.copy()
 xRange = np.array(range(xMid,xDim))
-hemiR[:,:,xRange] = 0
+hemiR[xRange,:,:] = 0
 
-#imgHemiR = sitk.GetImageFromArray(hemiR)
-#imgHemiR.CopyInformation(labelImg)
-# tempFile2 = os.path.join(tempDir , 'tmp2.nii.gz' )
-# sitk.WriteImage(imgHemiR, tempFile2)
 
 #############################################################
-print 'Generating kernel for Laplace smoothing'
+print 'Generating kerLap for Laplace smoothing'
 
-kernel = np.zeros((3,3,3)).astype(np.float64)
-kernel[0,1,1] = 1
-kernel[2,1,1] = 1
-kernel[1,0,1] = 1
-kernel[1,2,1] = 1
-kernel[1,1,0] = 1
-kernel[1,1,2] = 1
-kernel = kernel / 6.0
+kerLap = np.zeros((3,3,3)).astype(np.float64)
+kerLap[0,1,1] = 1
+kerLap[2,1,1] = 1
+kerLap[1,0,1] = 1
+kerLap[1,2,1] = 1
+kerLap[1,1,0] = 1
+kerLap[1,1,2] = 1
+kerLap = kerLap / 6.0
 
-imgKernel = sitk.GetImageFromArray(kernel)
 
 #############################################################
 
@@ -160,10 +146,8 @@ while i < maxReps and diff > epsilon:
     i = i + 1
     dataStored = laplaceData.copy()
     # Run the filter.
-    imgIn = sitk.GetImageFromArray(laplaceData)
-    lapSmoothingFilt = sitk.ConvolutionImageFilter()
-    imgOut = lapSmoothingFilt.Execute(imgIn, imgKernel)
-    laplaceData = sitk.GetArrayFromImage(imgOut)
+    laplaceData = convolve(laplaceData, kerLap)
+
     # Replace the boundary values.
     laplaceData[hemiL == 0] = 10000
     laplaceData[hemiL == 1] = 0
@@ -171,8 +155,6 @@ while i < maxReps and diff > epsilon:
     diff = np.abs(laplaceData - dataStored).reshape( (-1,1) )
     diff = np.max(diff)
     
-imgOut.CopyInformation(labelImg)
-
 
 
 tempDir = tempfile.gettempdir()
@@ -183,7 +165,8 @@ tempFileHemiLeft = os.path.join(tempDir , 'hemi-left.vtk' )
 tempFileHemiRight = os.path.join(tempDir , 'hemi-right.vtk' )
 tempFileBothMeshes = os.path.join(tempDir , 'hemi-both.vtk' )
 
-sitk.WriteImage(imgOut, tempFileLaplacianResult)
+imgOut = nib.Nifti1Image(laplaceData, labelImg.get_affine())
+nib.save(imgOut, tempFileLaplacianResult)
 
 # Extract surface 
 cmd = (irtkDir + '/mcubes'
@@ -231,20 +214,17 @@ while i < maxReps and diff > epsilon:
 # for i in range(maxReps):
     i = i + 1
     dataStored = laplaceData.copy()
-    imgIn = sitk.GetImageFromArray(laplaceData)
-    lapSmoothingFilt = sitk.ConvolutionImageFilter()
-    imgOut = lapSmoothingFilt.Execute(imgIn, imgKernel)
-    laplaceData = sitk.GetArrayFromImage(imgOut)
+    
+    laplaceData = convolve(laplaceData, kerLap)
+
     laplaceData[hemiR == 0] = 10000
     laplaceData[hemiR == 1] = 0
     diff = np.abs(laplaceData - dataStored).reshape( (-1,1) )
     diff = np.max(diff)
     
-imgOut.CopyInformation(labelImg)
-sitk.WriteImage(imgOut, tempFileLaplacianResult)
+imgOut = nib.Nifti1Image(laplaceData, labelImg.get_affine())
+nib.save(imgOut, tempFileLaplacianResult)
 
-
-# In[18]:
 
 # Extract surface 
 cmd = (irtkDir + '/mcubes' 
