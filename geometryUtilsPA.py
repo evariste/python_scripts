@@ -266,20 +266,23 @@ def randomRotationMatrix():
 
 
 
-def matrix2paramsAffine(m):
+def matrix2paramsAffine(m, array=False):
   '''
   
   Return a dictionary of parameters for a decomposition of matrix m into four
-  matrices
+  matrices.
   
-  m = T R K S 
+  m = T R K S
   
   where T is a translation matrix, R is a rotation matrix, K is a shear matrix
   and S is a scaling matrix
   
   Dictionary keys are 12 strings: 
   
-  ['tx', 'ty', 'tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz', 'sxy', 'sxz', 'syz']
+  ['tx', 'ty', 'tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz', 'sxy', 'syz', 'sxz']
+
+
+  Set flag 'array' to True to return an array instead of dictionary.
  
   '''
   
@@ -353,10 +356,16 @@ def matrix2paramsAffine(m):
   pars['rz'] = rz
   
   pars['sxy'] = math.atan(tansxy)
-  pars['sxz'] = math.atan(tansxz)
   pars['syz'] = math.atan(tansyz)
+  pars['sxz'] = math.atan(tansxz)
 
-  return pars
+  if array == False:
+    return pars
+
+  parNames = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz', 'sxy', 'syz', 'sxz']
+  parsArray = [pars[p] for p in parNames ]
+  return parsArray
+
 
 def randomAffineMatrix(forceSimilarity=False, useShears=True, limTrans=20, limScale=2.0, limShear=0.2):
   '''
