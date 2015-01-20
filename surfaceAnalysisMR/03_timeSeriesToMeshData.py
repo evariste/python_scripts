@@ -60,8 +60,9 @@ funcDataFile = scanFuncDir + '/EP5046_clean_rs_fMRI.nii.gz'
 
 # mapping mesh to individual fmri data
 dofFunc2HiRes = workingDir + '/func2highres.dof'
-funcMesh = workingDir + '/temp-func.vtk'
+inputMeshFile = workingDir + '/temp-func.vtk'
 
+outputImageFile = workingDir + '/mesh-series-data-as-image-0.75.nii.gz'
 
 # In[3]:
 
@@ -138,7 +139,7 @@ mask[mask > 0] = 1
 
 # Read the mesh in the subject's fMRI space (and build a locator object for use later.)
 pd_reader = vtk.vtkPolyDataReader()
-pd_reader.SetFileName(funcMesh)
+pd_reader.SetFileName(inputMeshFile)
 pd_reader.Update()
 pdFuncMesh = pd_reader.GetOutput()
 
@@ -222,20 +223,24 @@ for meshInd in range(nMeshPts):
 
 # Store the image data in a 4D nifiti file that we can run FEAT/MELODIC on
 
+# TODO: Size of output image as an optional argument.
 N = 50
 data = np.zeros((N,N,N, nTimePts))
 
 nSpatialVoxels = N*N*N
-count = min(nMeshPts, nSpatialVoxels)
 
-for c in range(count):
+if nMeshPts > nSpatialVoxels:
+  raise Exception('More mesh points than voxels available in output image. Exiting')
+
+for c in range(nMeshPts):
     indI, indJ, indK = np.unravel_index(c, (N,N,N))
     data[indI, indJ, indK, :] = seriesData[c, :]
     
 imageStorage = nib.Nifti1Image(data, np.eye(4))
 
-imageStorageName = workingDir + '/mesh-series-data-as-image-0.75.nii.gz'
+imageStorageName = outputImageFile
 nib.save(imageStorage, imageStorageName)
+
 
 
 # Next run in a terminal:
@@ -250,15 +255,18 @@ cmd2 = ('python generate_melodic_design_file_single_subject.py' +
 
 designFileName = workingDir + '/melodic-design-single.fsf'
 
-# Then run the commands
-cmd3 = 'cd ' + workingDir
+featScript = '/Users/paulaljabar/work/cdb/melodic-scripts/run_melodic.sh'
 
-cmd4 = 'feat ' + designFileName
+# Then run the commands
+
+cmd3 = (featScript + ' ' + designFileName)
+
+
+_,_ = runCommand(cmd3)
 
 # This will generate ICA spatial maps, time series and statistic maps.
 
 
 # In[10]:
-
 
 
