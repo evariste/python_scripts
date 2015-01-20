@@ -4,19 +4,51 @@ import struct
 import numpy as np
 import math
 
+def get2DKernelFrom1DKernel(ker1d):
+  """
+  Given a 1-D kernel construct and return the equivalent 2-D separable kernel
+  """
+
+  ker1d = np.asarray( ker1d )
+
+  if len(ker1d.shape) > 1:
+    raise Exception('get2DKernelFrom1DKernel: Expecting a 1-D kernel')
+
+  k2 = np.atleast_2d( ker1d )
+  k2 = k2.T.dot(k2)
+  return k2
+
+
+def get3DKernelFrom1DKernel(ker1d):
+  """
+  Given a 1-D kernel construct and return the equivalent 3-D separable kernel
+  """
+
+  ker1d = np.asarray( ker1d )
+
+  if len(ker1d.shape) > 1:
+    raise Exception('get3DKernelFrom1DKernel: Expecting a 1-D kernel')
+
+  k2 = get2DKernelFrom1DKernel(ker1d)
+
+  k2 = k2[:,:,None]
+  k3 = k2.dot(  np.atleast_2d(ker1d ) )
+  return k3
+
+
 def getBoxIntegral(integralImage, corner0, corner1):
   """
   Get the integral of values inside a cuboid in a 3D array for which the integral image is given
   defined by corner0 and corner1.
-  
+
   integralImage: Summed area (volume!) table for some 3D array (a.k.a. integral image)
-  
+
   corner0, corner1 : length 3 array-like to define the corners of the cuboid in the array.
                      Will not work if any of the indices are zero.
-  
+
   Sum is inclusive, i.e. includes both array elements at corners. I.e. if M was the original
   array for which the integralImage is given, we return the value of S in the following
-  
+
   S = 0
   for i in range(x1, x2+1):
    for j in range(y1, y2+1):
