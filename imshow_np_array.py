@@ -14,6 +14,11 @@ a = np.load(fileA)
 
 plt.imshow(a, cmap=plt.get_cmap('gray'), interpolation='nearest')
 plt.colorbar()
-plt.title(fileA)
+
+titleStr=fileA
+if len(titleStr)>50:
+    titleStr = '...' + titleStr[-50:]
+plt.title(titleStr)
+
 plt.show()
 
