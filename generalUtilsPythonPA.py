@@ -13,13 +13,15 @@ def runCommand(cmd, quiet=False, shellVal=False):
 
    """
   
-  if not quiet:
-    print cmd
     
   if shellVal == False:
     # Pass command as a list
     cmd = cmd.split(' ')
-    
+    cmd = filter(None, cmd)
+
+  if not quiet:
+    print ' '.join(cmd)
+
   try:    
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shellVal)
     (stdOut, stdErr) = p.communicate()
