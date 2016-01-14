@@ -1,10 +1,12 @@
-
-
-import os
 import sys
 import nibabel as nib
 import numpy
 import argparse
+
+
+from matplotlib import pyplot as plt
+
+
 
 
 def main(*args):
@@ -75,70 +77,48 @@ def main(*args):
       raise Exception('Source image and its mask different shapes')
     srcImgData = srcImgData[srcMask > 0]
 
+  N = 200
 
-  nBins = 100
+  ps = numpy.linspace(0, 100, N+1)
 
-  srcHist, srcBinEdges = numpy.histogram(srcImgData,bins=nBins)
-  srcCumFreq = numpy.cumsum(srcHist)
-  nSrcVoxels = srcCumFreq[-1]
-  srcBinCentiles = 100.0 * srcCumFreq / nSrcVoxels
+  srcPts = numpy.percentile(srcImgData, ps)
+  refPts = numpy.percentile(refImgData, ps)
 
-  refHist, refBinEdges = numpy.histogram(refImgData, bins=nBins)
-  refCumFreq = numpy.cumsum(refHist)
-  nRefVoxels = refCumFreq[-1]
-  refBinCentiles = 100.0 * refCumFreq / nRefVoxels
+  if (srcPts[-1] < srcMaxGlobal) or (refPts[-1] < refMaxGlobal):
+    srcPts = numpy.append(srcPts, srcMaxGlobal)
+    refPts = numpy.append(refPts, refMaxGlobal)
 
-  # Make the centiles match the bin edges in size
-  srcBinCentiles = numpy.hstack((0, srcBinCentiles))
-  refBinCentiles = numpy.hstack((0, refBinCentiles))
+  if (srcPts[0] > srcMinGlobal) or (refPts[0] > refMinGlobal):
+    srcPts = numpy.insert(srcPts, 0, srcMinGlobal)
+    refPts = numpy.insert(refPts, 0, refMinGlobal)
 
-  srcMinMasked = srcBinEdges[0]
-  srcMaxMasked = srcBinEdges[-1]
-  refMinMasked = refBinEdges[0]
-  refMaxMasked = refBinEdges[-1]
+
+  # Can have multiple repeated values at low end (most voxels are zero).
+  # Make the values ramp up linearly to the first non-minimim (0) intensity.
+  i = 0
+  while srcPts[i] == srcMinGlobal:
+    i += 1
+
+  if i > 1:
+    for j in range(1, i):
+      srcPts[j] = j * srcPts[i] / i
+
+  i = 0
+  while refPts[i] == refMinGlobal:
+    i += 1
+
+  if i > 1:
+    for j in range(1, i):
+      refPts[j] = j * refPts[i] / i
 
 
 
   outShape = outImgData.shape
 
-  outImgData = numpy.ravel(outImgData)
+  v = numpy.ravel(outImgData)
 
-  nOutVoxels = len(outImgData)
+  outImgData = numpy.interp(v, srcPts, refPts)
 
-  srcBinWidth = srcBinEdges[1]
-  refBinWidth = refBinEdges[1]
-
-  for n in range(nOutVoxels):
-    v = outImgData[n]
-
-    if v < srcMinMasked:
-      vOut = refMinGlobal + (refMinMasked - refMinGlobal) * (v - srcMinGlobal) / (srcMinMasked - srcMinGlobal)
-      outImgData[n] = vOut
-      continue
-
-    if v > srcMaxMasked:
-      vOut = refMaxMasked + (refMaxGlobal - refMaxMasked) * (v - srcMaxMasked) / (srcMaxGlobal - srcMaxMasked)
-      outImgData[n] = vOut
-      continue
-
-    i = int(v/srcBinWidth)
-
-    i = min(i,nBins-2)
-
-    pctile = srcBinCentiles[i] + (srcBinCentiles[i+1] - srcBinCentiles[i]) * (v - i * srcBinWidth) / srcBinWidth
-
-    i = 0
-    while (i < nBins) and (refBinCentiles[i] <= pctile):
-      i = i + 1
-
-    i = min(i, nBins-1)
-
-    vOut = (i-1) * refBinWidth + refBinWidth * (pctile - refBinCentiles[i-1]) / (refBinCentiles[i] - refBinCentiles[i-1])
-
-    outImgData[n] = vOut
-
-
-  # Restore shape and save.
   outImgData = numpy.reshape(outImgData, outShape)
 
   aff = srcImg.get_affine()
