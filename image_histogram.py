@@ -22,8 +22,18 @@ def main(*args):
   parser.add_argument("-bins", type=int, help=helpText, default=30)
 
   helpText = 'Maximum on x-axis'
-  parser.add_argument("-xMax", type=int, help=helpText, default=30)
-  
+  parser.add_argument("-xMax", type=float, help=helpText, default=None)
+
+  helpText = 'Minimum on x-axis'
+  parser.add_argument("-xMin", type=float, help=helpText, default=None)
+
+  helpText = 'Maximum on y-axis'
+  parser.add_argument("-yMax", type=float, help=helpText, default=None)
+
+  helpText = 'Minimum on y-axis'
+  parser.add_argument("-yMin", type=float, help=helpText, default=None)
+
+
   helpText = 'Output: Don\'t show plot, save it to a file with given name.'
   parser.add_argument('-output', type=str, help=helpText, default=None)
 
@@ -36,6 +46,9 @@ def main(*args):
   nBins = args.bins
   outputName = args.output
   xMax = args.xMax
+  xMin = args.xMin
+  yMax = args.yMax
+  yMin = args.yMin
 
 
   img = nib.load(inputFilename)
@@ -47,8 +60,24 @@ def main(*args):
   lims = pyplot.axis()
 
   if not (xMax == None):
-    xmin, oldXMax = pyplot.xlim()
-    pyplot.xlim( (xmin, xMax) )
+    print 'setting max x value to ', xMax
+    temp, _ = pyplot.xlim()
+    pyplot.xlim( (temp, xMax) )
+
+  if not (xMin == None):
+    print 'setting min x value to ', xMin
+    _, temp = pyplot.xlim()
+    pyplot.xlim( (xMin, temp) )
+
+  if not (yMax == None):
+    print 'setting max y value to ', yMax
+    temp, _ = pyplot.ylim()
+    pyplot.ylim( (temp, yMax) )
+
+  if not (yMin == None):
+    print 'setting min x value to ', yMin
+    _, temp = pyplot.ylim()
+    pyplot.ylim( (yMin, temp) )
 
   if outputName == None:
     pyplot.show()
