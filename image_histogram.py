@@ -1,7 +1,7 @@
 
 import sys
 import nibabel as nib
-import numpy
+import numpy as np
 import argparse
 from matplotlib import pyplot
 
@@ -12,11 +12,14 @@ def main(*args):
   the number of bins. If an output file is given, plot is saved rather than displayed.")
   parser = argparse.ArgumentParser(description=helpText)
   
-  helpText = "Input image"
+  helpText = "Input image [filename]"
   parser.add_argument("input", type=str, help=helpText)
 
   helpText = 'Threshold: default = -1.0'
   parser.add_argument("-threshold", type=float, help=helpText, default=-1.0)
+
+  helpText = 'Mask image [filename] (dimensions must match input image)'
+  parser.add_argument("-mask", type=str, help=helpText, default=None)
 
   helpText = 'Number of bins: default = 30'
   parser.add_argument("-bins", type=int, help=helpText, default=30)
@@ -44,6 +47,7 @@ def main(*args):
   inputFilename = args.input
   threshold = args.threshold
   nBins = args.bins
+  maskFilename = args.mask
   outputName = args.output
   xMax = args.xMax
   xMin = args.xMin
@@ -55,9 +59,19 @@ def main(*args):
   imgDType = img.get_data_dtype()
 
   imgData = img.get_data().astype(imgDType)
+  imgData = imgData.squeeze()
   
-  pyplot.hist(imgData[imgData > threshold], bins=nBins)
-  lims = pyplot.axis()
+  if maskFilename == None:
+      data = imgData[imgData > threshold]
+  else:
+      maskImg = nib.load(maskFilename)
+      mask = maskImg.get_data().squeeze()
+      if np.any(mask.shape != imgData.shape):
+          raise Exception('Error: Image and mask mismatch.')
+      data = imgData[mask > 0]
+      
+  pyplot.hist(data, bins=nBins)
+
 
   if not (xMax == None):
     print 'setting max x value to ', xMax
