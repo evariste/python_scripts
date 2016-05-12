@@ -36,9 +36,12 @@ def main(*args):
   helpText = 'Minimum on y-axis'
   parser.add_argument("-yMin", type=float, help=helpText, default=None)
 
+  helpText = 'Log scale'
+  parser.add_argument('-log', action='store_true', default=False, help=helpText)
 
   helpText = 'Output: Don\'t show plot, save it to a file with given name.'
   parser.add_argument('-output', type=str, help=helpText, default=None)
+
 
   args = parser.parse_args()
 
@@ -49,6 +52,7 @@ def main(*args):
   nBins = args.bins
   maskFilename = args.mask
   outputName = args.output
+  logScale = args.log
   xMax = args.xMax
   xMin = args.xMin
   yMax = args.yMax
@@ -70,7 +74,7 @@ def main(*args):
           raise Exception('Error: Image and mask mismatch.')
       data = imgData[mask > 0]
       
-  pyplot.hist(data, bins=nBins)
+  pyplot.hist(data, bins=nBins, log=logScale)
 
 
   if not (xMax == None):
