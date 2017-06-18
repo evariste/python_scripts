@@ -12,3 +12,5 @@ sk-image
 .settings/
 
 .idea/
+.ipynb_checkpoints/
+
