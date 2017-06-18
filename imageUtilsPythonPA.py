@@ -185,3 +185,63 @@ Write the contents of a numpy array to an IRTK matrix (.mat) format file.
   data = struct.pack(formatStr, *mm)
   f.write(data)
   f.close()
+
+
+
+def readIRTKRigidTransformation(dofFile):
+
+    f = open(dofFile, 'rb')
+
+    b = f.read()
+
+    magic = struct.unpack('>I ', b[:4])[0]
+
+    if magic != 815007:
+        raise Exception('Not a valid transformation.')
+
+    dofType = struct.unpack('>I ', b[4:8])[0]
+
+    if dofType != 2:
+        raise Exception('Not a rigid transformation')
+
+    nDofs = struct.unpack('>I ', b[8:12])[0]
+
+    if nDofs != 6:
+        raise Exception('Incorrect number of degrees of freedom.')
+
+    tx, ty, tz, rx, ry, rz = struct.unpack('>dddddd', b[12:])
+
+    rx = rx * np.pi / 180.0
+    ry = ry * np.pi / 180.0
+    rz = rz * np.pi / 180.0
+
+    mrz = np.eye(4)
+    c, s = np.cos(rz), np.sin(rz)
+    mrz[0,0] = c
+    mrz[0,1] = s
+    mrz[1,0] = -1.0 * s
+    mrz[1,1] = c
+
+    mry = np.eye(4)
+    c, s = np.cos(ry), np.sin(ry)
+    mry[0,0] = c
+    mry[0,2] = -1.0 * s
+    mry[2,0] = s
+    mry[2,2] = c
+
+    mrx = np.eye(4)
+    c, s = np.cos(rx), np.sin(rx)
+    mrx[1,1] = c
+    mrx[1,2] = s
+    mrx[2,1] = -1.0 * s
+    mrx[2,2] = c
+
+
+    m = mrx.dot(mry.dot(mrz))
+
+    m[0,3] = tx
+    m[1,3] = ty
+    m[2,3] = tz
+
+    return m
+
